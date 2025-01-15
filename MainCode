@@ -102,7 +102,7 @@ def start_game():
 start_game()
 
 class Enemy:
-    def __init__(self, x, y, move_interval=5):
+    def __init__(self, x, y, move_interval=3):
         self.x = int(random.randint(MAP_WIDTH * 0.25, MAP_WIDTH * 0.75))
         self.y = int(random.randint(MAP_WIDTH * 0.25, MAP_WIDTH * 0.75))
         self.symbol = "⚉"
@@ -115,7 +115,8 @@ class Enemy:
 
         
         if self.move_counter >= self.move_interval:
-            
+            self.move_counter = 0
+
             if self.x < player_x:
                 move_direction_x = "right"
             elif self.x > player_x:
@@ -259,82 +260,108 @@ def generate_enemies(num_enemies):
 def draw_enemies():
     for enemy in enemies:
         print(f"{enemy.symbol}", end="")
-
-def draw_map():
-    os.system("cls" if os.name == "nt" else "clear")
-    
-    
-    map_width = len(game_map[0])
-    map_height = len(game_map)
     
 def draw_map():
-    os.system("cls" if os.name == "nt" else "clear")
+    # Limpa a tela usando sequência ANSI
+    print("\033[2J\033[H", end="")
+    output = []  # Buffer para armazenar a saída
 
-    
-    print(Fore.WHITE + "\nUse WASD para mover e as setas para atirar.")
+    # Cabeçalho de instruções
+    output.append(Fore.WHITE + "\nUse WASD para mover e as setas para atirar." + Style.RESET_ALL + "\n")
 
-    
     map_width = len(game_map[0])
     map_height = len(game_map)
-    
-    
-    for y in range(player_y - view_height // 2, player_y + view_height // 2 + 1):
-        for x in range(player_x - view_width // 2, player_x + view_width // 2 + 1):
-            if 0 <= x < map_width and 0 <= y < map_height:
-                
-                enemy_here = next((e for e in enemies if e.x == x and e.y == y), None)
-                if enemy_here:
-                    print(Fore.RED + Style.DIM + enemy_here.symbol, end="")  
-                elif (x, y) == (player_x, player_y):
-                    print(Fore.LIGHTYELLOW_EX + Style.BRIGHT + "☻", end="")  
-                else:
-                    bullet = next((b for b in bullets if b["pos"] == (x, y)), None)
-                    if bullet:
-                        print(Fore.RED + Style.BRIGHT + bullet["symbol"], end="")  
-                    else:
-                        tile = game_map[y][x]
-                        
-                        if x == 0 or y == 0 or x == map_width - 1 or y == map_height - 1:
-                            print(Back.BLACK + "☗", end="")  
-                        else:
-                            
-                            if tile == "☗":  
-                                print(Fore.LIGHTBLACK_EX + tile, end="")
-                            elif tile == "⟰":  
-                                print(Fore.LIGHTBLACK_EX + tile, end="")
-                            elif tile == "⁙":  
-                                print(Fore.GREEN + tile, end="")
-                            elif tile == "⁘":  
-                                print(Fore.LIGHTGREEN_EX + tile, end="")
-                            elif tile == "⋅":  
-                                print(Fore.GREEN + Style.DIM + tile, end="")
-                            elif tile == "≈":  
-                                print(Fore.LIGHTBLUE_EX + tile, end="")
-                            elif tile == "~":  
-                                print(Fore.BLUE + Style.BRIGHT + tile, end="")
-                            elif tile == "≋":  
-                                print(Fore.CYAN + tile, end="")
-                            elif tile == "≜":  
-                                print(Fore.CYAN + Style.DIM + tile, end="")
-                            else:
-                                print(tile, end="")  
+    start_y = max(0, player_y - view_height // 2)
+    end_y = min(map_height, player_y + view_height // 2 + 1)
+    start_x = max(0, player_x - view_width // 2)
+    end_x = min(map_width, player_x + view_width // 2 + 1)
+
+    # Renderiza o mapa dentro do campo de visão
+    for y in range(start_y, end_y):
+        for x in range(start_x, end_x):
+            bullet = next((b for b in bullets if b["pos"] == (x, y)), None)
+            
+            if (x, y) == (player_x, player_y):
+                output.append(Fore.LIGHTYELLOW_EX + Style.BRIGHT + "☻" + Style.RESET_ALL)  # Jogador
+            elif any(e.x == x and e.y == y for e in enemies):
+                output.append(Fore.RED + Style.DIM + "⚉" + Style.RESET_ALL)  # Inimigo
+            elif bullet:
+                output.append(Fore.RED + Style.BRIGHT + bullet["symbol"] + Style.RESET_ALL)  # Bala
             else:
-                print(" ", end="")  
-        print()
-    
-    
+                tile = game_map[y][x]
+                if tile == "☗":  
+                    output.append(Fore.LIGHTBLACK_EX + tile + Style.RESET_ALL)
+                elif tile == "⟰":  
+                    output.append(Fore.LIGHTBLACK_EX + tile + Style.RESET_ALL)
+                elif tile == "⁙":  
+                    output.append(Fore.GREEN + tile + Style.RESET_ALL)
+                elif tile == "⁘":  
+                    output.append(Fore.LIGHTGREEN_EX + tile + Style.RESET_ALL)
+                elif tile == "⋅":  
+                    output.append(Fore.GREEN + Style.DIM + tile + Style.RESET_ALL)
+                elif tile == "≈":  
+                    output.append(Fore.LIGHTBLUE_EX + tile + Style.RESET_ALL)
+                elif tile == "~":  
+                    output.append(Fore.BLUE + Style.BRIGHT + tile + Style.RESET_ALL)
+                elif tile == "≋":  
+                    output.append(Fore.CYAN + tile + Style.RESET_ALL)
+                elif tile == "≜":  
+                    output.append(Fore.CYAN + Style.DIM + tile + Style.RESET_ALL)
+                else:
+                    output.append(tile)
+        output.append("\n")
+
+    # Exibe barra de status
     elapsed_time = time.time() - start_time
     minutes = int(elapsed_time // 60)
     seconds = int(elapsed_time % 60)
-    
-    
-    divider = "=" * 46  
-    print(Fore.YELLOW + divider)
-    print(Fore.MAGENTA + f"  Tempo: {minutes:02}:{seconds:02}", end="  ")
-    print(Fore.RED + f"Vidas: {lives}", end="  ")
-    print(Fore.CYAN + f"Score: {score}", end="  ")
-    print(Fore.GREEN + f"Level: {level}")
-    print(Fore.YELLOW + divider)
+    divider = "=" * 56
+
+    output.append(Fore.YELLOW + divider + Style.RESET_ALL + "\n")
+    output.append(Fore.MAGENTA + f"  Tempo: {minutes:02}:{seconds:02}  " + Style.RESET_ALL)
+
+    lives_heart = "❤" * lives
+    output.append(Fore.RED + f"Vidas: {lives_heart}  " + Style.RESET_ALL)
+ 
+    output.append(Fore.CYAN + f"Score: {score}  " + Style.RESET_ALL)
+    output.append(Fore.BLUE + f"Enemys Left: {len(enemies)}  " + Style.RESET_ALL)
+    output.append(Fore.GREEN + f"Level: {level}\n" + Style.RESET_ALL)
+    output.append(Fore.YELLOW + divider + Style.RESET_ALL + "\n")
+
+    # Exibe a seta de direção
+    if enemies:
+        # Calcula o primeiro inimigo
+        enemy = enemies[0]
+        
+        # Calcula a diferença entre as coordenadas do jogador e do inimigo
+        dx = enemy.x - player_x
+        dy = enemy.y - player_y
+        
+        # Determina a direção com base na diferença
+        if abs(dx) > abs(dy):  # Movimento horizontal
+            if dx > 0:
+                direction = "➡"
+            else:
+                direction = "⬅"
+        elif abs(dy) > abs(dx):  # Movimento vertical
+            if dy > 0:
+                direction = "⬇"
+            else:
+                direction = "⬆"
+        else:  # Caso esteja na diagonal
+            if dx > 0 and dy > 0:
+                direction = "⬈"
+            elif dx < 0 and dy > 0:
+                direction = "⬉"
+            elif dx > 0 and dy < 0:
+                direction = "⬊"
+            else:
+                direction = "⬋"
+        
+        output.append(Fore.RED + f"  Enemy radar: {direction}  " + Style.RESET_ALL)
+
+    # Imprime o conteúdo do buffer de saída
+    print("".join(output))
 
 
 move_counter = 0
@@ -362,6 +389,8 @@ def move_map(dx, dy):
                 player_x = new_x
                 player_y = new_y
                 move_counter = 0  
+
+    draw_map()
 
 
 
@@ -397,6 +426,7 @@ def shoot_bullet(direction):
 def move_bullets():
     global bullets, score, enemies
     while True:
+        draw_map()
         for bullet in bullets[:]:
             x, y = bullet["pos"]
 
@@ -440,14 +470,19 @@ bullet_thread.start()
 
 gen_map(500, player_x, player_y, 100)
 
+def drawMapThread():
+    while True:
+        draw_map()
+        time.sleep(1)
+    
+drawMap_Thread = threading.Thread(target=drawMapThread, daemon=True)
+drawMap_Thread.start()
 
 try:
     while True:
         if len(enemies) == 0 :
             level += 1
-            generate_enemies(50*level)
-
-        draw_map()
+            generate_enemies(5*level)
 
         
         if keyboard.is_pressed("w"):
@@ -469,13 +504,10 @@ try:
         if keyboard.is_pressed("right"):
             shoot_bullet("right")
 
-        time.sleep(0.1)
-
         for enemy in enemies[:]:
             enemy.move(player_x, player_y, lives)
 
-        
-        for enemy in enemies:
+            # Verificando se o inimigo está na mesma posição ou nas 8 posições ao redor do jogador
             if abs(enemy.x - player_x) <= 1 and abs(enemy.y - player_y) <= 1:
                 lives -= 1
                 enemies.remove(enemy)
@@ -483,10 +515,10 @@ try:
                 if lives == 0:
                     animated_gameOver()
                     exit()
-                break  
+                break  # Sai do loop após a colisão com um inimigo
 
 
-
+        time.sleep(0.1)
 
 except KeyboardInterrupt:
     print(Fore.RED + "\n Jogo encerrado.")
