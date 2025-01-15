@@ -1,0 +1,492 @@
+import keyboard
+import os
+import time
+import threading
+import random
+from colorama import init,Fore, Back, Style
+
+
+init(autoreset=True)
+
+
+MAP_WIDTH = 500
+MAP_HEIGHT = 500
+
+player_x = int(MAP_WIDTH*0.5)
+player_y = int(MAP_HEIGHT*0.5)
+game_map = [["" for _ in range(MAP_WIDTH)] for _ in range(MAP_HEIGHT)]
+view_width = 45  
+view_height = 10  
+bullets = []
+enemies = []
+last_shot_time = 0  
+cooldown = 0.5  
+score = 0  
+lives = 3  
+level = 0
+start_time = time.time()  
+
+
+def animated_title():
+    title = [
+        "████████╗ █████╗ ██╗     ███████╗███████╗        ",
+        "╚══██╔══╝██╔══██╗██║     ██╔════╝██╔════╝        ",
+        "   ██║   ███████║██║     █████╗  ███████╗        ",
+        "   ██║   ██╔══██║██║     ██╔══╝  ╚════██║        ",
+        "   ██║   ██║  ██║███████╗███████╗███████║        ",
+        "   ╚═╝   ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝        ",
+        "                                                 ",
+        "                 ██████╗ ███████╗                ",
+        "                ██╔═══██╗██╔════╝                ",
+        "                ██║   ██║█████╗                  ",
+        "                ██║   ██║██╔══╝                  ",
+        "                ╚██████╔╝██║                     ",
+        "                 ╚═════╝ ╚═╝                     ",
+        "                                                 ",
+        " █████╗ ██████╗ ██████╗  ██████╗ ██████╗  █████╗ ",
+        "██╔══██╗██╔══██╗██╔══██╗██╔═══██╗██╔══██╗██╔══██╗",
+        "███████║██████╔╝██████╔╝██║   ██║██████╔╝███████║",
+        "██╔══██║██╔══██╗██╔══██╗██║   ██║██╔══██╗██╔══██║",
+        "██║  ██║██║  ██║██║  ██║╚██████╔╝██████╔╝██║  ██║"
+    ]
+    
+    
+    for line in title:
+        print(Fore.CYAN + line)
+        time.sleep(0.3)  
+    time.sleep(1.5)
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def animated_gameOver():
+    text = [
+        " ██████╗  █████╗ ███╗   ███╗███████╗",
+        "██╔════╝ ██╔══██╗████╗ ████║██╔════╝",
+        "██║  ███╗███████║██╔████╔██║█████╗  ",
+        "██║   ██║██╔══██║██║╚██╔╝██║██╔══╝  ",
+        "╚██████╔╝██║  ██║██║ ╚═╝ ██║███████╗",
+        " ╚═════╝ ╚═╝  ╚═╝╚═╝     ╚═╝╚══════╝",
+        "                                     ",
+        " ██████╗ ██╗   ██╗███████╗██████╗   ",
+        "██╔═══██╗██║   ██║██╔════╝██╔══██╗  ",
+        "██║   ██║██║   ██║█████╗  ██████╔╝  ",
+        "██║   ██║╚██╗ ██╔╝██╔══╝  ██╔══██╗  ",
+        "╚██████╔╝ ╚████╔╝ ███████╗██║  ██║  ",
+        " ╚═════╝   ╚═══╝  ╚══════╝╚═╝  ╚═╝   "
+    ]
+    
+    
+    for line in text:
+        print(Fore.RED + line)
+        time.sleep(0.3)  
+    time.sleep(1.5)
+    os.system("cls" if os.name == "nt" else "clear")
+
+
+def get_game_settings():
+    global MAP_WIDTH, MAP_HEIGHT, view_width, view_height
+    
+    
+    MAP_WIDTH = int(input("Digite a largura do mapa (ex: 500): "))
+    MAP_HEIGHT = int(input("Digite a altura do mapa (ex: 500): "))
+    
+    
+    view_width = int(input("Digite a largura da área visível (ex: 45): "))
+    view_height = int(input("Digite a altura da área visível (ex: 10): "))
+
+def start_game():
+    
+    animated_title()
+    
+    get_game_settings()
+start_game()
+
+class Enemy:
+    def __init__(self, x, y, move_interval=5):
+        self.x = int(random.randint(MAP_WIDTH * 0.25, MAP_WIDTH * 0.75))
+        self.y = int(random.randint(MAP_WIDTH * 0.25, MAP_WIDTH * 0.75))
+        self.symbol = "⚉"
+        self.health = 1  
+        self.move_counter = 0  
+        self.move_interval = move_interval  
+
+    def move(self, player_x, player_y, lives):
+        self.move_counter += 1  
+
+        
+        if self.move_counter >= self.move_interval:
+            
+            if self.x < player_x:
+                move_direction_x = "right"
+            elif self.x > player_x:
+                move_direction_x = "left"
+            else:
+                move_direction_x = None
+
+            if self.y < player_y:
+                move_direction_y = "down"
+            elif self.y > player_y:
+                move_direction_y = "up"
+            else:
+                move_direction_y = None
+
+            
+            def is_position_occupied(new_x, new_y):
+                return any(enemy.x == new_x and enemy.y == new_y for enemy in enemies if enemy is not self)
+
+            
+            def is_bullet_in_direction(direction):
+                if direction == "up":
+                    return game_map[self.y - 1][self.x] in ["▲", "▼", "◀", "▶"]
+                elif direction == "down":
+                    return game_map[self.y + 1][self.x] in ["▲", "▼", "◀", "▶"]
+                elif direction == "left":
+                    return game_map[self.y][self.x - 1] in ["▲", "▼", "◀", "▶"]
+                elif direction == "right":
+                    return game_map[self.y][self.x + 1] in ["▲", "▼", "◀", "▶"]
+                return False
+
+            
+            def is_blocked(x, y):
+                tile = game_map[y][x]
+                return tile in ["☗", "⟰", "≜"] or is_bullet_in_direction("up" if y < self.y else "down" if y > self.y else "left" if x < self.x else "right")
+
+            
+            if move_direction_x == "right" and not is_blocked(self.x + 1, self.y) and not is_position_occupied(self.x + 1, self.y):
+                self.x += 1
+            elif move_direction_x == "left" and not is_blocked(self.x - 1, self.y) and not is_position_occupied(self.x - 1, self.y):
+                self.x -= 1
+
+            if move_direction_y == "down" and not is_blocked(self.x, self.y + 1) and not is_position_occupied(self.x, self.y + 1):
+                self.y += 1
+            elif move_direction_y == "up" and not is_blocked(self.x, self.y - 1) and not is_position_occupied(self.x, self.y - 1):
+                self.y -= 1
+            else:
+                
+                if not is_bullet_in_direction("left") and not is_blocked(self.x - 1, self.y) and not is_position_occupied(self.x - 1, self.y):
+                    self.x -= 1
+                elif not is_bullet_in_direction("right") and not is_blocked(self.x + 1, self.y) and not is_position_occupied(self.x + 1, self.y):
+                    self.x += 1
+                elif not is_bullet_in_direction("down") and not is_blocked(self.x, self.y + 1) and not is_position_occupied(self.x, self.y + 1):
+                    self.y += 1
+                elif not is_bullet_in_direction("up") and not is_blocked(self.x, self.y - 1) and not is_position_occupied(self.x, self.y - 1):
+                    self.y -= 1
+
+
+
+def noise(x, y):
+    n = x + y * 57
+    n = (n << 13) ^ n
+    return (3 - ((n * (n * n * 15731 + 789221) + 1376312589) & 0x7fffffff) / 1073741824.0)
+
+
+def smoothed_noise(x, y):
+    corners = (noise(x - 1, y - 1) + noise(x + 1, y - 1) + noise(x - 1, y + 1) + noise(x + 1, y + 1)) / 16
+    sides = (noise(x - 1, y) + noise(x + 1, y) + noise(x, y - 1) + noise(x, y + 1)) / 8
+    center = noise(x, y) / 4
+    return corners + sides + center
+
+
+def generate_height(x, y, seed):
+    return seed * smoothed_noise(x, y)
+
+
+def gen_map(map_size, player_x, player_y, seed):
+    min_height = 126.67812360450625
+    max_height = 272.0085903070867
+
+    for i in range(MAP_WIDTH):
+        for j in range(MAP_HEIGHT):
+            height = generate_height(i, j, seed)
+            
+            
+            height_mapped = int((height - min_height) / (max_height - min_height) * 255)
+
+            game_map[i][j] = " " + str(height_mapped) + " "
+
+            if height_mapped > 190:
+                game_map[i][j] = "☗"  
+            elif height_mapped > 180:
+                game_map[i][j] = "⟰"  
+            elif height_mapped > 120:
+                game_map[i][j] = "⁙"  
+            elif height_mapped > 115:
+                game_map[i][j] = "⁘"  
+            elif height_mapped > 110:
+                game_map[i][j] = "⋅"  
+            elif height_mapped > 90:
+                game_map[i][j] = "~"  
+            elif height_mapped > 80:
+                game_map[i][j] = "≈"  
+            elif height_mapped > 50:
+                game_map[i][j] = "≋"  
+            else:
+                game_map[i][j] = "≜"  
+
+
+    
+    return game_map
+
+import random
+
+
+def is_accessible(x, y):
+    
+    for dx in range(-1, 2):
+        for dy in range(-1, 2):
+            nx, ny = x + dx, y + dy
+            if 0 <= nx < MAP_WIDTH and 0 <= ny < MAP_HEIGHT:
+                if game_map[ny][nx] in ["☗", "⟰", "≈", "~", "≋", "≜"]:  
+                    return False
+    return True
+
+
+def generate_enemies(num_enemies):
+    for _ in range(num_enemies):
+        while True:
+            x = random.randint(1, MAP_WIDTH - 2)
+            y = random.randint(1, MAP_HEIGHT - 2)
+
+            
+            if game_map[y][x] not in ["☗", "⟰", "≈", "~", "≋", "≜"] and is_accessible(x, y):
+                game_map[y][x] = "⚉"  
+                enemies.append(Enemy(x, y))
+                break
+
+
+
+
+def draw_enemies():
+    for enemy in enemies:
+        print(f"{enemy.symbol}", end="")
+
+def draw_map():
+    os.system("cls" if os.name == "nt" else "clear")
+    
+    
+    map_width = len(game_map[0])
+    map_height = len(game_map)
+    
+def draw_map():
+    os.system("cls" if os.name == "nt" else "clear")
+
+    
+    print(Fore.WHITE + "\nUse WASD para mover e as setas para atirar.")
+
+    
+    map_width = len(game_map[0])
+    map_height = len(game_map)
+    
+    
+    for y in range(player_y - view_height // 2, player_y + view_height // 2 + 1):
+        for x in range(player_x - view_width // 2, player_x + view_width // 2 + 1):
+            if 0 <= x < map_width and 0 <= y < map_height:
+                
+                enemy_here = next((e for e in enemies if e.x == x and e.y == y), None)
+                if enemy_here:
+                    print(Fore.RED + Style.DIM + enemy_here.symbol, end="")  
+                elif (x, y) == (player_x, player_y):
+                    print(Fore.LIGHTYELLOW_EX + Style.BRIGHT + "☻", end="")  
+                else:
+                    bullet = next((b for b in bullets if b["pos"] == (x, y)), None)
+                    if bullet:
+                        print(Fore.RED + Style.BRIGHT + bullet["symbol"], end="")  
+                    else:
+                        tile = game_map[y][x]
+                        
+                        if x == 0 or y == 0 or x == map_width - 1 or y == map_height - 1:
+                            print(Back.BLACK + "☗", end="")  
+                        else:
+                            
+                            if tile == "☗":  
+                                print(Fore.LIGHTBLACK_EX + tile, end="")
+                            elif tile == "⟰":  
+                                print(Fore.LIGHTBLACK_EX + tile, end="")
+                            elif tile == "⁙":  
+                                print(Fore.GREEN + tile, end="")
+                            elif tile == "⁘":  
+                                print(Fore.LIGHTGREEN_EX + tile, end="")
+                            elif tile == "⋅":  
+                                print(Fore.GREEN + Style.DIM + tile, end="")
+                            elif tile == "≈":  
+                                print(Fore.LIGHTBLUE_EX + tile, end="")
+                            elif tile == "~":  
+                                print(Fore.BLUE + Style.BRIGHT + tile, end="")
+                            elif tile == "≋":  
+                                print(Fore.CYAN + tile, end="")
+                            elif tile == "≜":  
+                                print(Fore.CYAN + Style.DIM + tile, end="")
+                            else:
+                                print(tile, end="")  
+            else:
+                print(" ", end="")  
+        print()
+    
+    
+    elapsed_time = time.time() - start_time
+    minutes = int(elapsed_time // 60)
+    seconds = int(elapsed_time % 60)
+    
+    
+    divider = "=" * 46  
+    print(Fore.YELLOW + divider)
+    print(Fore.MAGENTA + f"  Tempo: {minutes:02}:{seconds:02}", end="  ")
+    print(Fore.RED + f"Vidas: {lives}", end="  ")
+    print(Fore.CYAN + f"Score: {score}", end="  ")
+    print(Fore.GREEN + f"Level: {level}")
+    print(Fore.YELLOW + divider)
+
+
+move_counter = 0
+
+def move_map(dx, dy):
+    global player_x, player_y, move_counter
+    new_x = player_x + dx
+    new_y = player_y + dy
+
+    
+    if 0 <= new_x < len(game_map[0]) and 0 <= new_y < len(game_map):
+        tile = game_map[new_y][new_x]
+
+        
+        if tile not in ["☗", "⟰"]:
+            if tile in ["≈", "~", "≋", "≜"]:  
+                
+                water_delay = {"≈": 2, "~": 3, "≋": 4, "≜": 5}
+                if move_counter % water_delay[tile] == 0:
+                    player_x = new_x
+                    player_y = new_y
+                move_counter += 1  
+            else:
+                
+                player_x = new_x
+                player_y = new_y
+                move_counter = 0  
+
+
+
+
+def shoot_bullet(direction):
+    global last_shot_time, score
+    current_time = time.time()
+
+    
+    if current_time - last_shot_time >= cooldown:
+        symbol = ""
+        if direction == "up":
+            symbol = "▲"
+            if game_map[player_y - 1][player_x] not in ["☗", "⟰"]:
+                bullets.append({"pos": (player_x, player_y - 1), "direction": "up", "symbol": symbol})
+        elif direction == "down":
+            symbol = "▼"
+            if game_map[player_y + 1][player_x] not in ["☗", "⟰"]:
+                bullets.append({"pos": (player_x, player_y + 1), "direction": "down", "symbol": symbol})
+        elif direction == "left":
+            symbol = "◀"
+            if game_map[player_y][player_x - 1] not in ["☗", "⟰"]:
+                bullets.append({"pos": (player_x - 1, player_y), "direction": "left", "symbol": symbol})
+        elif direction == "right":
+            symbol = "▶"
+            if game_map[player_y][player_x + 1] not in ["☗", "⟰"]:
+                bullets.append({"pos": (player_x + 1, player_y), "direction": "right", "symbol": symbol})
+
+        
+        last_shot_time = current_time
+
+
+def move_bullets():
+    global bullets, score, enemies
+    while True:
+        for bullet in bullets[:]:
+            x, y = bullet["pos"]
+
+            
+            if bullet["direction"] == "up":
+                new_pos = (x, y - 1)
+            elif bullet["direction"] == "down":
+                new_pos = (x, y + 1)
+            elif bullet["direction"] == "left":
+                new_pos = (x - 1, y)
+            elif bullet["direction"] == "right":
+                new_pos = (x + 1, y)
+
+            
+            new_x, new_y = new_pos
+            if 0 <= new_x < len(game_map[0]) and 0 <= new_y < len(game_map):
+                
+                enemy_hit = next((enemy for enemy in enemies if enemy.x == new_x and enemy.y == new_y), None)
+                if enemy_hit:
+                    score += 1  
+                    enemies.remove(enemy_hit)  
+                    bullets.remove(bullet)  
+                else:
+                    
+                    tile = game_map[new_y][new_x]
+                    
+                    
+                    if tile in ["☗", "⟰"]:  
+                        bullets.remove(bullet)
+                    else:
+                        
+                        bullet["pos"] = new_pos
+            else:
+                bullets.remove(bullet)  
+
+        time.sleep(0.1)
+
+
+bullet_thread = threading.Thread(target=move_bullets, daemon=True)
+bullet_thread.start()
+
+gen_map(500, player_x, player_y, 100)
+
+
+try:
+    while True:
+        if len(enemies) == 0 :
+            level += 1
+            generate_enemies(50*level)
+
+        draw_map()
+
+        
+        if keyboard.is_pressed("w"):
+            move_map(0, -1)
+        if keyboard.is_pressed("a"):
+            move_map(-1, 0)
+        if keyboard.is_pressed("s"):
+            move_map(0, 1)
+        if keyboard.is_pressed("d"):
+            move_map(1, 0)
+
+        
+        if keyboard.is_pressed("up"):
+            shoot_bullet("up")
+        if keyboard.is_pressed("down"):
+            shoot_bullet("down")
+        if keyboard.is_pressed("left"):
+            shoot_bullet("left")
+        if keyboard.is_pressed("right"):
+            shoot_bullet("right")
+
+        time.sleep(0.1)
+
+        for enemy in enemies[:]:
+            enemy.move(player_x, player_y, lives)
+
+        
+        for enemy in enemies:
+            if abs(enemy.x - player_x) <= 1 and abs(enemy.y - player_y) <= 1:
+                lives -= 1
+                enemies.remove(enemy)
+                
+                if lives == 0:
+                    animated_gameOver()
+                    exit()
+                break  
+
+
+
+
+except KeyboardInterrupt:
+    print(Fore.RED + "\n Jogo encerrado.")
