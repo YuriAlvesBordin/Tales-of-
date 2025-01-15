@@ -262,11 +262,11 @@ def draw_enemies():
         print(f"{enemy.symbol}", end="")
     
 def draw_map():
-    # Limpa a tela usando sequência ANSI
+    
     print("\033[2J\033[H", end="")
-    output = []  # Buffer para armazenar a saída
+    output = []  
 
-    # Cabeçalho de instruções
+    
     output.append(Fore.WHITE + "\nUse WASD para mover e as setas para atirar." + Style.RESET_ALL + "\n")
 
     map_width = len(game_map[0])
@@ -276,17 +276,17 @@ def draw_map():
     start_x = max(0, player_x - view_width // 2)
     end_x = min(map_width, player_x + view_width // 2 + 1)
 
-    # Renderiza o mapa dentro do campo de visão
+    
     for y in range(start_y, end_y):
         for x in range(start_x, end_x):
             bullet = next((b for b in bullets if b["pos"] == (x, y)), None)
             
             if (x, y) == (player_x, player_y):
-                output.append(Fore.LIGHTYELLOW_EX + Style.BRIGHT + "☻" + Style.RESET_ALL)  # Jogador
+                output.append(Fore.LIGHTYELLOW_EX + Style.BRIGHT + "☻" + Style.RESET_ALL)  
             elif any(e.x == x and e.y == y for e in enemies):
-                output.append(Fore.RED + Style.DIM + "⚉" + Style.RESET_ALL)  # Inimigo
+                output.append(Fore.RED + Style.DIM + "⚉" + Style.RESET_ALL)  
             elif bullet:
-                output.append(Fore.RED + Style.BRIGHT + bullet["symbol"] + Style.RESET_ALL)  # Bala
+                output.append(Fore.RED + Style.BRIGHT + bullet["symbol"] + Style.RESET_ALL)  
             else:
                 tile = game_map[y][x]
                 if tile == "☗":  
@@ -311,7 +311,7 @@ def draw_map():
                     output.append(tile)
         output.append("\n")
 
-    # Exibe barra de status
+    
     elapsed_time = time.time() - start_time
     minutes = int(elapsed_time // 60)
     seconds = int(elapsed_time % 60)
@@ -328,27 +328,27 @@ def draw_map():
     output.append(Fore.GREEN + f"Level: {level}\n" + Style.RESET_ALL)
     output.append(Fore.YELLOW + divider + Style.RESET_ALL + "\n")
 
-    # Exibe a seta de direção
+    
     if enemies:
-        # Calcula o primeiro inimigo
+        
         enemy = enemies[0]
         
-        # Calcula a diferença entre as coordenadas do jogador e do inimigo
+        
         dx = enemy.x - player_x
         dy = enemy.y - player_y
         
-        # Determina a direção com base na diferença
-        if abs(dx) > abs(dy):  # Movimento horizontal
+        
+        if abs(dx) > abs(dy):  
             if dx > 0:
                 direction = "➡"
             else:
                 direction = "⬅"
-        elif abs(dy) > abs(dx):  # Movimento vertical
+        elif abs(dy) > abs(dx):  
             if dy > 0:
                 direction = "⬇"
             else:
                 direction = "⬆"
-        else:  # Caso esteja na diagonal
+        else:  
             if dx > 0 and dy > 0:
                 direction = "⬈"
             elif dx < 0 and dy > 0:
@@ -360,7 +360,7 @@ def draw_map():
         
         output.append(Fore.RED + f"  Enemy radar: {direction}  " + Style.RESET_ALL)
 
-    # Imprime o conteúdo do buffer de saída
+    
     print("".join(output))
 
 
@@ -507,7 +507,7 @@ try:
         for enemy in enemies[:]:
             enemy.move(player_x, player_y, lives)
 
-            # Verificando se o inimigo está na mesma posição ou nas 8 posições ao redor do jogador
+            
             if abs(enemy.x - player_x) <= 1 and abs(enemy.y - player_y) <= 1:
                 lives -= 1
                 enemies.remove(enemy)
@@ -515,7 +515,7 @@ try:
                 if lives == 0:
                     animated_gameOver()
                     exit()
-                break  # Sai do loop após a colisão com um inimigo
+                break  
 
 
         time.sleep(0.1)
